@@ -1,0 +1,6 @@
+{
+  "name": "دعوة زفاف فاخرة | لوحة تحكم متكاملة",
+  "description": "موقع دعوة زفاف إلكترونية عربية فاخرة بتصميم بني داكن وبيج وذهبي مع لوحة تحكم شاملة لإدارة الوسائط والتأكيدات والإعدادات.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
