@@ -19,6 +19,7 @@ import { AudioPlayer } from './components/AudioPlayer';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { Eye } from 'lucide-react';
+import { safeFetch } from './utils/api';
 
 export default function App() {
   const [data, setData] = useState<InvitationData>(defaultInvitationData);
@@ -42,20 +43,15 @@ export default function App() {
 
   // Check auth on load
   const verifyAuth = async (token: string) => {
-    try {
-      const res = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const json = await res.json();
-      if (json.authenticated) {
-        setIsAdminLoggedIn(true);
-      } else {
-        setIsAdminLoggedIn(false);
-        localStorage.removeItem('wedding_admin_token');
-        setAdminToken(null);
-      }
-    } catch {
+    const res = await safeFetch<{ authenticated: boolean }>('/api/auth/me', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok && res.data?.authenticated) {
+      setIsAdminLoggedIn(true);
+    } else {
       setIsAdminLoggedIn(false);
+      localStorage.removeItem('wedding_admin_token');
+      setAdminToken(null);
     }
   };
 
@@ -68,14 +64,12 @@ export default function App() {
         headers['Authorization'] = `Bearer ${adminToken}`;
       }
 
-      const res = await fetch(`/api/invitation${isPreview ? '?preview=true' : ''}`, {
-        headers
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data) {
-          setData(json.data);
-        }
+      const res = await safeFetch<{ data?: InvitationData }>(
+        `/api/invitation${isPreview ? '?preview=true' : ''}`,
+        { headers }
+      );
+      if (res.ok && res.data?.data) {
+        setData(res.data.data);
       }
     } catch (err) {
       console.error('Failed to load invitation data, using cached defaults', err);
@@ -159,14 +153,10 @@ export default function App() {
 
   const handleLogout = async () => {
     if (adminToken) {
-      try {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${adminToken}` }
-        });
-      } catch {
-        // ignore
-      }
+      await safeFetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
     }
     localStorage.removeItem('wedding_admin_token');
     setAdminToken(null);
@@ -393,11 +383,12 @@ export default function App() {
       />
 
       {/* Admin Login / Initial Setup Modal */}
-      <AdminLoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
-      />
+      {isLoginModalOpen && (
+        <AdminLoginModal
+          onClose={() => setIsLoginModalOpen(false)}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      )}
 
       {/* Full Admin Dashboard Overlay */}
       {isAdminDashboardOpen && adminToken && (

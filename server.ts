@@ -147,6 +147,18 @@ class DatabaseManager {
     this.save();
   }
 
+  public resetAdmin(): void {
+    this.data.admin = {
+      isConfigured: false,
+      username: '',
+      salt: '',
+      passwordHash: '',
+      updatedAt: new Date().toISOString()
+    };
+    this.data.sessions = {};
+    this.save();
+  }
+
   public getPublished(): InvitationData {
     return this.data.published;
   }
@@ -330,14 +342,14 @@ async function startServer() {
     });
   });
 
-  // First-time administrator creation
+  // First-time administrator creation or reset
   app.post('/api/auth/setup', (req: Request, res: Response) => {
-    if (db.isConfigured()) {
-      res.status(400).json({ error: 'تم إعداد حساب المسؤول مسبقاً، يرجى تسجيل الدخول' });
+    const { username, password, forceReset } = req.body;
+    if (db.isConfigured() && !forceReset) {
+      res.status(400).json({ error: 'تم إعداد حساب المسؤول مسبقاً، يرجى تسجيل الدخول أو اختيار إعادة التعيين' });
       return;
     }
 
-    const { username, password } = req.body;
     if (!username || typeof username !== 'string' || username.trim().length < 3) {
       res.status(400).json({ error: 'يجب أن لا يقل اسم المستخدم عن 3 أحرف' });
       return;
@@ -355,6 +367,15 @@ async function startServer() {
       token,
       admin: db.getAdminInfo(),
       message: 'تم إنشاء بيانات المسؤول بنجاح والدخول إلى لوحة التحكم'
+    });
+  });
+
+  // Reset administrator account to allow re-creating credentials
+  app.post('/api/auth/reset', (_req: Request, res: Response) => {
+    db.resetAdmin();
+    res.json({
+      success: true,
+      message: 'تمت إعادة ضبط بيانات المسؤول بنجاح، يمكنك الآن إنشاء بيانات جديدة.'
     });
   });
 
@@ -688,8 +709,24 @@ async function startServer() {
     }
   });
 
+  // Unmatched API routes handler - always JSON, never HTML
+  app.all('/api/*', (_req: Request, res: Response) => {
+    res.status(404).json({ error: 'نقطة النهاية المطلوبة غير موجودة' });
+  });
+
+  // Global Express error handler for API
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+    console.error('Express internal error:', err);
+    if (req.path.startsWith('/api/')) {
+      res.status(500).json({ error: err.message || 'حدث خطأ في الخادم' });
+    } else {
+      res.status(500).send('Internal Server Error');
+    }
+  });
+
   // Vite Integration
-  if (process.env.NODE_ENV !== 'production') {
+  const distPath = path.join(__dirname, 'dist');
+  if (process.env.NODE_ENV !== 'production' || !fs.existsSync(distPath)) {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
@@ -699,7 +736,6 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(__dirname, 'dist');
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));

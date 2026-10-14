@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { CheckCircle2, HeartHandshake, Send, Users, AlertCircle } from 'lucide-react';
 
+import { safeFetch } from '../utils/api';
+
 interface RsvpSectionProps {
   enabled: boolean;
   deadlineText?: string;
@@ -43,7 +45,7 @@ export const RsvpSection: React.FC<RsvpSectionProps> = ({
     setLoading(true);
 
     try {
-      const res = await fetch('/api/rsvp', {
+      const res = await safeFetch<{ message: string }>('/api/rsvp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -55,14 +57,12 @@ export const RsvpSection: React.FC<RsvpSectionProps> = ({
         })
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        throw new Error(data.error || 'حدث خطأ أثناء حفظ الرد');
+        throw new Error(res.error || 'حدث خطأ أثناء حفظ الرد');
       }
 
       setSubmitted(true);
-      setResponseMessage(data.message);
+      setResponseMessage(res.data?.message || 'تم استلام ردكم بنجاح، شكراً لكم!');
       onSuccess?.();
 
       if (status === 'attending') {
