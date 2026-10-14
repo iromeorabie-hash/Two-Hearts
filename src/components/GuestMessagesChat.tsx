@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { MessageSquareHeart, Heart, Sparkles, User, Pause, Play } from 'lucide-react';
 import { PublicGuestMessage } from '../types/invitation';
 
-import { safeFetch } from '../utils/api';
-
 interface GuestMessagesChatProps {
   refreshTrigger?: number;
 }
@@ -15,9 +13,10 @@ export const GuestMessagesChat: React.FC<GuestMessagesChatProps> = ({ refreshTri
 
   const fetchMessages = async () => {
     try {
-      const res = await safeFetch<{ messages: PublicGuestMessage[] }>('/api/guest-messages');
-      if (res.ok && res.data?.messages) {
-        setMessages(res.data.messages);
+      const res = await fetch('/api/guest-messages');
+      if (res.ok) {
+        const json = await res.json();
+        setMessages(json.messages || []);
       }
     } catch {
       // ignore

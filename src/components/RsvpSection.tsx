@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { CheckCircle2, HeartHandshake, Send, Users, AlertCircle } from 'lucide-react';
 
-import { safeFetch } from '../utils/api';
-
 interface RsvpSectionProps {
   enabled: boolean;
   deadlineText?: string;
@@ -21,6 +19,8 @@ export const RsvpSection: React.FC<RsvpSectionProps> = ({
   notes,
   onSuccess
 }) => {
+  if (!enabled) return null;
+
   const [guestName, setGuestName] = useState('');
   const [status, setStatus] = useState<'attending' | 'apologizing'>('attending');
   const [companionCount, setCompanionCount] = useState(0);
@@ -30,8 +30,6 @@ export const RsvpSection: React.FC<RsvpSectionProps> = ({
   const [submitted, setSubmitted] = useState(false);
   const [responseMessage, setResponseMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-
-  if (!enabled) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +43,7 @@ export const RsvpSection: React.FC<RsvpSectionProps> = ({
     setLoading(true);
 
     try {
-      const res = await safeFetch<{ message: string }>('/api/rsvp', {
+      const res = await fetch('/api/rsvp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -57,12 +55,14 @@ export const RsvpSection: React.FC<RsvpSectionProps> = ({
         })
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        throw new Error(res.error || 'حدث خطأ أثناء حفظ الرد');
+        throw new Error(data.error || 'حدث خطأ أثناء حفظ الرد');
       }
 
       setSubmitted(true);
-      setResponseMessage(res.data?.message || 'تم استلام ردكم بنجاح، شكراً لكم!');
+      setResponseMessage(data.message);
       onSuccess?.();
 
       if (status === 'attending') {

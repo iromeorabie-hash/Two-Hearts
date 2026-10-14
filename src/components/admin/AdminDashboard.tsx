@@ -39,7 +39,6 @@ import {
   CustomSectionItem,
   RsvpResponse
 } from '../../types/invitation';
-import { safeFetch } from '../../utils/api';
 
 interface AdminDashboardProps {
   token: string;
@@ -101,7 +100,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Admin credentials state
   const [currentPassword, setCurrentPassword] = useState('');
-  const [newUsername, setNewUsername] = useState('');
+  const [newUsername, setNewUsername] = useState('Ramadan');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -109,28 +108,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await safeFetch<{ draft: InvitationData; published: InvitationData }>('/api/invitation/draft', {
+      const res = await fetch('/api/invitation/draft', {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.status === 401) {
         onLogout();
         return;
       }
-      if (res.ok && res.data) {
-        setDraft(res.data.draft);
-        setPublished(res.data.published);
-      } else {
-        showNotice('error', res.error || 'تعذر جلب بيانات لوحة التحكم من الخادم');
-      }
-
-      // Also fetch admin username
-      const meRes = await safeFetch<{ admin?: { username: string } }>('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (meRes.ok && meRes.data?.admin?.username) {
-        setNewUsername(meRes.data.admin.username);
-      }
-    } catch {
+      const json = await res.json();
+      setDraft(json.draft);
+      setPublished(json.published);
+    } catch (err) {
       showNotice('error', 'تعذر جلب بيانات لوحة التحكم من الخادم');
     } finally {
       setLoading(false);
@@ -139,23 +127,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Fetch RSVPs
   const fetchRsvps = async () => {
-    const res = await safeFetch<{
-      rsvps: RsvpResponse[];
-      totalResponses: number;
-      attendingTotalPersons: number;
-      attendingResponses: number;
-      apologizingCount: number;
-    }>('/api/rsvp', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.ok && res.data) {
-      setRsvps(res.data.rsvps || []);
-      setRsvpStats({
-        totalResponses: res.data.totalResponses || 0,
-        attendingTotalPersons: res.data.attendingTotalPersons || 0,
-        attendingResponses: res.data.attendingResponses || 0,
-        apologizingCount: res.data.apologizingCount || 0
+    try {
+      const res = await fetch('/api/rsvp', {
+        headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.ok) {
+        const json = await res.json();
+        setRsvps(json.rsvps || []);
+        setRsvpStats({
+          totalResponses: json.totalResponses || 0,
+          attendingTotalPersons: json.attendingTotalPersons || 0,
+          attendingResponses: json.attendingResponses || 0,
+          apologizingCount: json.apologizingCount || 0
+        });
+      }
+    } catch {
+      // ignore
     }
   };
 
@@ -174,7 +161,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!draft) return;
     setSaving(true);
     try {
-      const res = await safeFetch<{ draft: InvitationData }>('/api/invitation/save-draft', {
+      const res = await fetch('/api/invitation/save-draft', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -182,8 +169,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         },
         body: JSON.stringify({ draft })
       });
-      if (!res.ok) throw new Error(res.error || 'فشل حفظ المسودة');
-      if (res.data?.draft) setDraft(res.data.draft);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'فشل حفظ المسودة');
+      setDraft(data.draft);
       showNotice('success', 'تم حفظ التعديلات بنجاح في قاعدة البيانات بشكل دائم');
     } catch (err: any) {
       showNotice('error', err.message || 'خطأ أثناء الحفظ');
@@ -198,7 +186,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setPublishing(true);
     try {
       // First save draft
-      await safeFetch('/api/invitation/save-draft', {
+      await fetch('/api/invitation/save-draft', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -208,12 +196,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
 
       // Then publish
-      const res = await safeFetch<{ published: InvitationData }>('/api/invitation/publish', {
+      const res = await fetch('/api/invitation/publish', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error(res.error || 'فشل نشر التعديلات');
-      if (res.data?.published) setPublished(res.data.published);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'فشل نشر التعديلات');
+      setPublished(data.published);
       showNotice('success', 'تهانينا! تم نشر التعديلات بنجاح وأصبحت ظاهرة لجميع الزوار');
     } catch (err: any) {
       showNotice('error', err.message || 'خطأ أثناء النشر');
@@ -228,12 +217,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return;
     }
     try {
-      const res = await safeFetch<{ draft: InvitationData }>('/api/invitation/discard', {
+      const res = await fetch('/api/invitation/discard', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error(res.error || 'تعذر التراجع');
-      if (res.data?.draft) setDraft(res.data.draft);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setDraft(data.draft);
       showNotice('success', 'تم التراجع عن التعديلات واستعادة النسخة المنشورة');
     } catch (err: any) {
       showNotice('error', err.message || 'تعذر التراجع');
@@ -245,15 +235,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!url.trim()) return;
     setTestResult({ loading: true });
     try {
-      const res = await safeFetch<{ valid: boolean; message: string }>('/api/media/validate', {
+      const res = await fetch('/api/media/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: url.trim(), type })
       });
+      const data = await res.json();
       setTestResult({
         loading: false,
-        valid: res.ok && res.data?.valid,
-        message: res.data?.message || res.error || 'تعذر التحقق من الرابط'
+        valid: data.valid,
+        message: data.message
       });
     } catch {
       setTestResult({
@@ -295,15 +286,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleDeleteRsvp = async (id: string) => {
     if (!window.confirm('هل أنت متأكد من حذف هذا الرد؟')) return;
     try {
-      const res = await safeFetch(`/api/rsvp/${id}`, {
+      const res = await fetch(`/api/rsvp/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         showNotice('success', 'تم حذف الرد بنجاح');
         fetchRsvps();
-      } else {
-        showNotice('error', res.error || 'تعذر حذف الرد');
       }
     } catch {
       showNotice('error', 'تعذر حذف الرد');
@@ -312,15 +301,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleToggleChatVisibility = async (id: string) => {
     try {
-      const res = await safeFetch(`/api/rsvp/${id}/toggle-visibility`, {
+      const res = await fetch(`/api/rsvp/${id}/toggle-visibility`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         showNotice('success', 'تم تحديث حالة ظهور الرسالة في شات الموقع');
         fetchRsvps();
-      } else {
-        showNotice('error', res.error || 'تعذر تحديث ظهور الرسالة');
       }
     } catch {
       showNotice('error', 'تعذر تحديث ظهور الرسالة');
@@ -335,7 +322,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return;
     }
     try {
-      const res = await safeFetch('/api/auth/change-credentials', {
+      const res = await fetch('/api/auth/change-credentials', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -347,7 +334,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           newPassword: newPassword || undefined
         })
       });
-      if (!res.ok) throw new Error(res.error || 'تعذر تحديث البيانات');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
       showNotice('success', 'تم تحديث بيانات المسؤول بنجاح');
       setCurrentPassword('');
       setNewPassword('');
@@ -365,7 +353,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     reader.onload = async (evt) => {
       try {
         const payload = JSON.parse(evt.target?.result as string);
-        const res = await safeFetch('/api/backup/restore', {
+        const res = await fetch('/api/backup/restore', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -373,7 +361,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           },
           body: JSON.stringify(payload)
         });
-        if (!res.ok) throw new Error(res.error || 'فشلت استعادة النسخة الاحتياطية');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
         showNotice('success', 'تمت استعادة النسخة الاحتياطية بنجاح!');
         fetchData();
         fetchRsvps();
