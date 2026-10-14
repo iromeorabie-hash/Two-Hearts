@@ -19,8 +19,6 @@ export const RsvpSection: React.FC<RsvpSectionProps> = ({
   notes,
   onSuccess
 }) => {
-  if (!enabled) return null;
-
   const [guestName, setGuestName] = useState('');
   const [status, setStatus] = useState<'attending' | 'apologizing'>('attending');
   const [companionCount, setCompanionCount] = useState(0);
@@ -30,6 +28,8 @@ export const RsvpSection: React.FC<RsvpSectionProps> = ({
   const [submitted, setSubmitted] = useState(false);
   const [responseMessage, setResponseMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  if (!enabled) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

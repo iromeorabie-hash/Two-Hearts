@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Volume2, VolumeX, Music, Disc } from 'lucide-react';
+import React from 'react';
+import { Volume2, VolumeX, Disc } from 'lucide-react';
 
 interface AudioPlayerProps {
   musicUrl: string;

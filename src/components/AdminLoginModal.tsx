@@ -12,8 +12,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   onClose,
   onLoginSuccess
 }) => {
-  if (!isOpen) return null;
-
   const [isSetupMode, setIsSetupMode] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
 
@@ -27,6 +25,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
   // Check whether administrator account is configured or needs first-time setup
   useEffect(() => {
+    if (!isOpen) return;
     let isMounted = true;
     const checkSetupStatus = async () => {
       setCheckingStatus(true);
@@ -50,6 +49,8 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
       isMounted = false;
     };
   }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
